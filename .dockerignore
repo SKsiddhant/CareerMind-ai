@@ -1,0 +1,19 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.git
+.gitignore
+frontend/node_modules
+frontend/dist
+backend.log
+data/chroma_db
+data/audio
+RESUME_SIddhant 2 (1).pdf
+architecture.svg
+chat_history.md
+project_requirements.md
