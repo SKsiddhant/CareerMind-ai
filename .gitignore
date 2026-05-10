@@ -1,0 +1,37 @@
+# Environments
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Database
+*.db
+*.sqlite3
+data/chroma_db/
+
+# Logs
+*.log
+
+# PDFs and Resumes
+*.pdf
+data/resumes/
+data/uploads/
+
+# Audio
+data/audio/*.mp3
+
+# Node.js
+node_modules/
+dist/
+.next/
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db

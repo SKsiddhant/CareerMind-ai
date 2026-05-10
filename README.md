@@ -110,5 +110,14 @@ This project showcases production-level AI engineering skills:
 
 ---
 
+## 📺 Demo
+![Demo GIF](path/to/demo.gif)
+*Watch the platform in action!*
+
+## 🌐 Live Application
+[View CareerMind AI Live](https://your-deployment-url.com)
+
+---
+
 ## 📜 License
-[MIT License](LICENSE) — Created by [Siddhant](https://github.com/your-username) (Update with your profile!)
+[MIT License](LICENSE) — Created by [Siddhant](https://github.com/SKsiddhant)
