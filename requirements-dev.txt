@@ -1,0 +1,13 @@
+# Tests need only these (heavy ML / network libraries are faked in tests/conftest.py).
+pytest
+httpx
+fastapi
+sqlalchemy
+python-multipart
+python-dotenv
+fpdf2>=2.7.8
+pypdf
+beautifulsoup4
+numpy
+langchain-text-splitters
+langchain-core

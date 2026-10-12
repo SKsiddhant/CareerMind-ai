@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { api } from '../services/api';
+import { api, API_BASE_URL } from '../services/api';
 import { Search, Globe, Building2, MapPin, ExternalLink, Zap } from 'lucide-react';
 
 const JobIntelligence: React.FC = () => {
@@ -43,7 +43,7 @@ const JobIntelligence: React.FC = () => {
       console.log("Battle Card Generated:", res.data);
       alert(`🚩 WAR ROOM COMPLETE: Battle Card generated for ${job.metadata.company}. Check the console for details and your tailored resume!`);
       if (res.data.resume_url) {
-        window.open(`http://127.0.0.1:8002${res.data.resume_url}`, '_blank');
+        window.open(`${API_BASE_URL}${res.data.resume_url}`, '_blank');
       }
     } catch (err) {
       console.error(err);

@@ -3,8 +3,9 @@ import json
 import shutil
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.docstore.document import Document
+# These moved out of the `langchain` package in 1.x; the standalone packages work on old and new versions.
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 from sentence_transformers import CrossEncoder
 from dotenv import load_dotenv
 
@@ -69,6 +70,7 @@ class RAGPipeline:
 
         documents = []
         ids = []
+        seen_ids = set()  # Chroma rejects a batch that repeats an id
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=700, 
             chunk_overlap=70,
@@ -77,8 +79,8 @@ class RAGPipeline:
 
         for job in jobs:
             # Skip invalid/error scrapes
-            desc = job.get('description', '')
-            if "Page not found" in desc or job.get('title') == "N/A" or not desc:
+            desc = job.get('description') or ''
+            if "Page not found" in desc or job.get('title') == "N/A" or not desc or not job.get('url'):
                 continue
             
             # Use company and skills in content for better searchability
@@ -104,8 +106,12 @@ class RAGPipeline:
             chunks = text_splitter.split_text(content)
             
             for i, chunk in enumerate(chunks):
+                chunk_id = f"{job['url']}#chunk{i}"
+                if chunk_id in seen_ids:
+                    break  # same job scraped twice in this file
+                seen_ids.add(chunk_id)
                 documents.append(Document(page_content=chunk, metadata=metadata))
-                ids.append(f"{job['url']}#chunk{i}")
+                ids.append(chunk_id)
 
         if not documents:
             print("No new valid job documents to index.")

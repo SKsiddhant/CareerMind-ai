@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { api } from '../services/api';
-import { FileCode, Target, Sparkles, FileText, CheckCircle2, AlertTriangle, RefreshCw, Upload, ShieldAlert, Hammer, GraduationCap, Briefcase } from 'lucide-react';
+import { api, API_BASE_URL } from '../services/api';
+import { FileCode, Target, Sparkles, FileText, CheckCircle2, AlertTriangle, RefreshCw, Upload, ShieldAlert, Hammer, GraduationCap, Briefcase, Download } from 'lucide-react';
 
 const ResumeTailor: React.FC = () => {
   const [query, setQuery] = useState('');
@@ -106,7 +106,7 @@ const ResumeTailor: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                 {analysis.reconstructed_resume_url && (
                   <button 
-                    onClick={() => window.open(`http://127.0.0.1:8002${analysis.reconstructed_resume_url}`, '_blank')}
+                    onClick={() => window.open(`${API_BASE_URL}${analysis.reconstructed_resume_url}`, '_blank')}
                     className="btn-primary" 
                     style={{ background: '#00ff7f', color: 'black', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}
                   >
@@ -225,7 +225,7 @@ const ResumeTailor: React.FC = () => {
               </h2>
               {strat.resume_url && (
                 <button 
-                  onClick={() => window.open(`http://127.0.0.1:8002${strat.resume_url}`, '_blank')}
+                  onClick={() => window.open(`${API_BASE_URL}${strat.resume_url}`, '_blank')}
                   className="btn-primary" 
                   style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', fontSize: '0.85rem' }}
                 >

@@ -2,6 +2,7 @@ import os
 import json
 import google.generativeai as genai
 from dotenv import load_dotenv
+from backend.utils import extract_json
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -46,14 +47,7 @@ class SalaryNegotiator:
 
         try:
             response = self.model.generate_content(prompt)
-            text = response.text
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[1].strip()
-            
-            strategy = json.loads(text)
-            return strategy
+            return extract_json(response.text)
         except Exception as e:
             print(f"Negotiation generation failed: {e}")
             return {"error": str(e)}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../services/api';
-import { ShieldCheck, Cpu, Zap, Users, Trophy, Download, ExternalLink, Play } from 'lucide-react';
+import { api, API_BASE_URL } from '../services/api';
+import { ShieldCheck, Cpu, Zap, Trophy, Download, ExternalLink, Play } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const [status, setStatus] = useState<string>('Connecting...');
@@ -8,19 +8,6 @@ const Dashboard: React.FC = () => {
   const [historyCount, setHistoryCount] = useState<number>(0);
   const [eliteLeads, setEliteLeads] = useState<any[]>([]);
   const [hunting, setHunting] = useState(false);
-
-  useEffect(() => {
-    api.getStatus()
-      .then(res => setStatus(res.data.message))
-      .catch(() => setStatus('Backend Offline'));
-    
-    const savedId = localStorage.getItem('careermind_user_id');
-    if (savedId) {
-      setUserId(parseInt(savedId));
-      fetchHistory(parseInt(savedId));
-    }
-    fetchEliteLeads();
-  }, []);
 
   const fetchHistory = async (id: number) => {
     try {
@@ -66,6 +53,19 @@ const Dashboard: React.FC = () => {
       alert("Sync failed. Ensure backend is running.");
     }
   };
+
+  useEffect(() => {
+    api.getStatus()
+      .then(res => setStatus(res.data.message))
+      .catch(() => setStatus('Backend Offline'));
+    
+    const savedId = localStorage.getItem('careermind_user_id');
+    if (savedId) {
+      setUserId(parseInt(savedId));
+      fetchHistory(parseInt(savedId));
+    }
+    fetchEliteLeads();
+  }, []);
 
   const stats = [
     { label: 'System Status', value: status, icon: <ShieldCheck className="text-primary" /> },
@@ -117,7 +117,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', gap: '0.75rem' }}>
                     <button 
-                      onClick={() => window.open(`http://127.0.0.1:8002${lead.battle_card.resume_url}`, '_blank')}
+                      onClick={() => window.open(`${API_BASE_URL}${lead.battle_card.resume_url}`, '_blank')}
                       style={{ background: 'transparent', border: '1px solid var(--primary-color)', color: 'var(--primary-color)', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                     >
                       <Download size={14} /> Resume

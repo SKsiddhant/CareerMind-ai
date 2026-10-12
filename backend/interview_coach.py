@@ -2,6 +2,7 @@ import os
 import json
 import google.generativeai as genai
 from backend.rag_pipeline import RAGPipeline
+from backend.utils import extract_json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -93,13 +94,9 @@ class InterviewCoach:
 
         try:
             response = self.model.generate_content(prompt)
-            text = response.text
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[1].strip()
-            
-            evaluation = json.loads(text)
+            evaluation = extract_json(response.text)
+            if not isinstance(evaluation, dict):
+                raise ValueError("model did not return a JSON object")
             return evaluation
         except Exception as e:
             print(f"Evaluation failed: {e}")

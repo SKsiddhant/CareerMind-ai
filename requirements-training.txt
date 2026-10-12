@@ -1,0 +1,7 @@
+# Only needed to run models/train_lora.py and models/expand_dataset.py (needs a GPU for training).
+-r requirements.txt
+datasets
+peft
+trl
+bitsandbytes
+tqdm

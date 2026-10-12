@@ -1,10 +1,12 @@
 import asyncio
 import json
+import os
 from backend.job_intelligence import JobIntelligence
 from backend.resume_tailor import ResumeTailor
 from backend.interview_coach import InterviewCoach
 from backend.salary_negotiator import SalaryNegotiator
 from backend.hiring_intelligence import HiringIntelligence
+from backend.utils import extract_json
 
 class CareerCommander:
     """
@@ -51,17 +53,17 @@ class CareerCommander:
             "job": {"title": job_title, "company": company},
             "hiring_manager": hiring_manager,
             "strategy": final_strategy,
-            "negotiation": await self.salary.generate_negotiation_strategy(company, job_title, final_strategy['match_score']),
+            "negotiation": await self.salary.generate_negotiation_strategy(company, job_title, final_strategy.get('match_score', 0)),
             "war_room_log": [
                 {"agent": "ResumeTailor", "action": "Generated initial strategy"},
-                {"agent": "InterviewCoach", "action": f"Critique: {critique['summary']}"},
+                {"agent": "InterviewCoach", "action": f"Critique: {critique.get('summary', 'n/a')}"},
                 {"agent": "ResumeTailor", "action": "Applied refinements for maximum impact"}
             ]
         }
         
         # Generate the final PDF with the REFINED bullets
         pdf_path = self.tailor.generate_pdf_resume(
-            final_strategy["optimized_bullets"], 
+            final_strategy.get("optimized_bullets", []), 
             job_title, 
             company
         )
@@ -73,9 +75,7 @@ class CareerCommander:
         # Simplified for internal logic
         prompt = f"Generate an 'Unfair Advantage' strategy for {title} at {company}. Context: {content}. Return JSON."
         response = self.tailor.model.generate_content(prompt)
-        text = response.text
-        if "```json" in text: text = text.split("```json")[1].split("```")[0].strip()
-        return json.loads(text)
+        return extract_json(response.text)
 
     async def _critique_strategy(self, strategy, job_content):
         prompt = f"""
@@ -88,9 +88,7 @@ class CareerCommander:
         Return JSON with keys: "weaknesses" (list), "summary" (string).
         """
         response = self.coach.model.generate_content(prompt)
-        text = response.text
-        if "```json" in text: text = text.split("```json")[1].split("```")[0].strip()
-        return json.loads(text)
+        return extract_json(response.text)
 
     async def _refine_strategy(self, strategy, critique):
         prompt = f"""
@@ -102,6 +100,4 @@ class CareerCommander:
         Return the FULL updated strategy object as JSON.
         """
         response = self.tailor.model.generate_content(prompt)
-        text = response.text
-        if "```json" in text: text = text.split("```json")[1].split("```")[0].strip()
-        return json.loads(text)
+        return extract_json(response.text)

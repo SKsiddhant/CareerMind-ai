@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { api } from '../services/api';
+import { api, API_BASE_URL } from '../services/api';
 import { Mic2, MessageSquare, Award, AlertCircle, Quote, StopCircle, Volume2 } from 'lucide-react';
 
 const InterviewCoach: React.FC = () => {
@@ -25,7 +25,7 @@ const InterviewCoach: React.FC = () => {
       const res = await api.generateQuestion(formData.job_title);
       setFormData({ ...formData, question: res.data.question });
       if (res.data.audio_url) {
-        const url = `http://127.0.0.1:8002${res.data.audio_url}`;
+        const url = `${API_BASE_URL}${res.data.audio_url}`;
         const audio = new Audio(url);
         audio.play();
       }
@@ -74,7 +74,7 @@ const InterviewCoach: React.FC = () => {
       const res = await api.voiceTurn(formData.job_title, formData.question, audioBlob);
       setEvaluation(res.data.evaluation);
       if (res.data.audio_url) {
-        setAudioUrl(`http://127.0.0.1:8002${res.data.audio_url}`);
+        setAudioUrl(`${API_BASE_URL}${res.data.audio_url}`);
       }
     } catch (err) {
       console.error(err);

@@ -4,16 +4,21 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=careermind
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=${POSTGRES_DB:-careermind}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # local only; change the password in .env before exposing it anywhere
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-careermind}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
 
   backend:
     build:
@@ -22,22 +27,29 @@ services:
     ports:
       - "8002:8002"
     environment:
-      - POSTGRES_DB=careermind
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=${POSTGRES_DB:-careermind}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
       - POSTGRES_HOST=db
       - REDIS_HOST=redis
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}   # set in .env (copy .env.example) or your shell
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+      - SCRAPER_CONCURRENCY=${SCRAPER_CONCURRENCY:-4}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy   # otherwise the backend can start first and silently fall back to SQLite
+      redis:
+        condition: service_started
     volumes:
       - ./data:/app/data
+      - model_cache:/root/.cache     # Whisper / HuggingFace models are re-downloaded on every start without this
 
   frontend:
     build:
       context: .
       dockerfile: frontend.Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://127.0.0.1:8002}
     ports:
       - "80:80"
     depends_on:
@@ -45,3 +57,4 @@ services:
 
 volumes:
   postgres_data:
+  model_cache:

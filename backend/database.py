@@ -1,7 +1,7 @@
 import os
+from urllib.parse import quote_plus
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,16 +15,21 @@ db_name = os.getenv("POSTGRES_DB", "careermind")
 
 # Fallback to SQLite for development if POSTGRES_HOST is localhost and connection fails, 
 # or if explicitly requested. For this project, we prioritize the Production architecture.
-SQLALCHEMY_DATABASE_URL = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL") or f"postgresql://{quote_plus(db_user)}:{quote_plus(db_pass)}@{db_host}:{db_port}/{db_name}"
+if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):  # SQLAlchemy 1.4+ only accepts "postgresql://"
+    SQLALCHEMY_DATABASE_URL = "postgresql://" + SQLALCHEMY_DATABASE_URL[len("postgres://"):]
 
 try:
-    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    # connect_timeout: with the old default an unreachable host could hang start-up for minutes
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"connect_timeout": 5} if SQLALCHEMY_DATABASE_URL.startswith("postgresql") else {})
     # Quick check if engine can connect
     with engine.connect() as conn:
         pass
 except Exception:
     print("⚠️ PostgreSQL not found. Falling back to local SQLite database for development.")
-    SQLALCHEMY_DATABASE_URL = "sqlite:///./careermind.db"
+    # Keep using an existing local file; otherwise put it in data/, the folder docker-compose persists.
+    os.makedirs("data", exist_ok=True)
+    SQLALCHEMY_DATABASE_URL = "sqlite:///./careermind.db" if os.path.exists("careermind.db") else "sqlite:///./data/careermind.db"
     engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
