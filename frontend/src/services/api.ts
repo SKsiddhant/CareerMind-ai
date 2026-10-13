@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://127.0.0.1:8002';
+// Set VITE_API_URL at build time to point at a deployed backend (no trailing slash).
+export const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8002';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

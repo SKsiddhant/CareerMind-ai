@@ -2,8 +2,8 @@
 FROM python:3.10-slim
 
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 # Set work directory
 WORKDIR /app
@@ -33,4 +33,5 @@ RUN mkdir -p data/audio data/chroma_db
 EXPOSE 8002
 
 # Run the application
+# (one worker: the Whisper and embedding models are loaded per process and are large)
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8002"]

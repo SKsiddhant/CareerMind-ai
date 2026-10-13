@@ -52,7 +52,10 @@ class HiringIntelligence:
         }
         if company_name in domains:
             return domains[company_name]
-        return f"{company_name.lower().replace(' ', '').replace('ai', '')}.com"
+        # Only strip a trailing "AI" word ("Foo AI" -> foo.com). Replacing every "ai" mangled names
+        # such as "Airbnb" -> "rbnb.com".
+        base = re.sub(r"\s+ai$", "", company_name.strip(), flags=re.I)
+        return f"{re.sub(r'[^a-z0-9]', '', base.lower())}.com"
 
     async def discover_manager(self, company, job_title):
         """

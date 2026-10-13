@@ -6,6 +6,7 @@ from backend.rag_pipeline import RAGPipeline
 from dotenv import load_dotenv
 from fpdf import FPDF
 from pypdf import PdfReader
+from backend.utils import extract_json, pdf_text, safe_slug, unique_name
 
 load_dotenv()
 
@@ -67,9 +68,11 @@ class ResumeTailor:
             reader = PdfReader(pdf_path)
             resume_text = ""
             for page in reader.pages:
-                resume_text += page.extract_text()
+                resume_text += (page.extract_text() or "") + "\n"
         except Exception as e:
             return {"error": f"Failed to parse PDF: {str(e)}"}
+        if not resume_text.strip():
+            return {"error": "No text could be extracted from this PDF (it may be a scanned image)."}
 
         # 2. THE INTENSIFIED RUTHLESS PROMPT
         prompt = f"""
@@ -115,13 +118,10 @@ class ResumeTailor:
 
         try:
             response = self.model.generate_content(prompt)
-            text = response.text
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[1].strip()
-            
-            return json.loads(text)
+            result = extract_json(response.text)
+            if not isinstance(result, dict):
+                raise ValueError("model did not return a JSON object")
+            return result
         except Exception as e:
             print(f"Audit/Catalyst failed: {e}")
             return {"error": "Failed to generate deep insights."}
@@ -132,49 +132,50 @@ class ResumeTailor:
         pdf.add_page()
         
         # Header
-        pdf.set_font("Arial", "B", 22)
-        pdf.cell(0, 12, profile.get("name", "Candidate"), ln=True, align="C")
-        pdf.set_font("Arial", "", 10)
-        pdf.cell(0, 8, profile.get("contact", ""), ln=True, align="C")
+        pdf.set_font("Helvetica", "B", 22)
+        pdf.cell(0, 12, pdf_text(profile.get("name", "Candidate")), new_x="LMARGIN", new_y="NEXT", align="C")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(0, 8, pdf_text(profile.get("contact", "")), new_x="LMARGIN", new_y="NEXT", align="C")
         pdf.ln(5)
 
         # Summary
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "PROFESSIONAL SUMMARY", ln=True)
-        pdf.set_font("Arial", "", 10)
-        pdf.multi_cell(0, 5, profile.get("summary", ""))
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 10, "PROFESSIONAL SUMMARY", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(0, 5, pdf_text(profile.get("summary", "")), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(5)
 
         # Experience
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "TECHNICAL EXPERIENCE", ln=True)
-        for exp in profile.get("experience", []):
-            pdf.set_font("Arial", "B", 11)
-            pdf.cell(0, 8, f"{exp.get('role', '')} | {exp.get('company', '')}", ln=True)
-            pdf.set_font("Arial", "", 10)
-            for bullet in exp.get("bullets", []):
-                pdf.multi_cell(0, 5, f"- {bullet}")
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 10, "TECHNICAL EXPERIENCE", new_x="LMARGIN", new_y="NEXT")
+        for exp in (profile.get("experience") or []):
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.cell(0, 8, pdf_text(f"{exp.get('role', '')} | {exp.get('company', '')}"), new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font("Helvetica", "", 10)
+            for bullet in (exp.get("bullets") or []):
+                pdf.multi_cell(0, 5, pdf_text(f"- {bullet}"), new_x="LMARGIN", new_y="NEXT")
             pdf.ln(3)
 
         # Projects
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "TECHNICAL PROJECTS", ln=True)
-        for proj in profile.get("projects", []):
-            pdf.set_font("Arial", "B", 11)
-            pdf.cell(0, 8, f"{proj.get('name', '')} ({proj.get('tech', '')})", ln=True)
-            pdf.set_font("Arial", "", 10)
-            for bullet in proj.get("bullets", []):
-                pdf.multi_cell(0, 5, f"- {bullet}")
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 10, "TECHNICAL PROJECTS", new_x="LMARGIN", new_y="NEXT")
+        for proj in (profile.get("projects") or []):
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.cell(0, 8, pdf_text(f"{proj.get('name', '')} ({proj.get('tech', '')})"), new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font("Helvetica", "", 10)
+            for bullet in (proj.get("bullets") or []):
+                pdf.multi_cell(0, 5, pdf_text(f"- {bullet}"), new_x="LMARGIN", new_y="NEXT")
             pdf.ln(3)
 
         # Skills
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "CORE COMPETENCIES", ln=True)
-        pdf.set_font("Arial", "", 10)
-        pdf.multi_cell(0, 5, ", ".join(profile.get("skills", [])))
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 10, "CORE COMPETENCIES", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(0, 5, pdf_text(", ".join(str(x) for x in (profile.get("skills") or []))), new_x="LMARGIN", new_y="NEXT")
         
-        safe_name = profile.get("name", "Edited").replace(" ", "_")
-        filename = f"data/resumes/AI_RECONSTRUCTED_{safe_name}.pdf"
+        # Unique, sanitised name: the candidate name comes from the model (and so from the uploaded
+        # resume), and a fixed per-name file would let one person's upload overwrite another's.
+        filename = f"data/resumes/{unique_name('AI_RECONSTRUCTED_' + safe_slug(profile.get('name'), 'Edited'), 'pdf')}"
         os.makedirs("data/resumes", exist_ok=True)
         pdf.output(filename)
         return filename
@@ -183,36 +184,36 @@ class ResumeTailor:
         """Generates a professional PDF resume tailored to a job."""
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", "B", 20)
-        pdf.cell(0, 10, self.user_profile["name"], ln=True, align="C")
-        pdf.set_font("Arial", "", 10)
-        pdf.cell(0, 10, self.user_profile["contact"], ln=True, align="C")
+        pdf.set_font("Helvetica", "B", 20)
+        pdf.cell(0, 10, pdf_text(self.user_profile["name"]), new_x="LMARGIN", new_y="NEXT", align="C")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(0, 10, pdf_text(self.user_profile["contact"]), new_x="LMARGIN", new_y="NEXT", align="C")
         pdf.ln(5)
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, f"Target Role: {job_title} at {company}", ln=True)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 10, pdf_text(f"Target Role: {job_title} at {company}"), new_x="LMARGIN", new_y="NEXT")
         pdf.set_line_width(0.5)
         pdf.line(10, pdf.get_y(), 200, pdf.get_y())
         pdf.ln(5)
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "Experience", ln=True)
-        pdf.set_font("Arial", "", 10)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 10, "Experience", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 10)
         for exp in self.user_profile["experience"]:
-            pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 8, f"{exp['role']} | {exp['company']}", ln=True)
-            pdf.set_font("Arial", "", 10)
-            pdf.multi_cell(0, 6, f"- {exp['details']}")
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.cell(0, 8, pdf_text(f"{exp['role']} | {exp['company']}"), new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font("Helvetica", "", 10)
+            pdf.multi_cell(0, 6, pdf_text(f"- {exp['details']}"), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(5)
-        pdf.set_font("Arial", "B", 10)
-        pdf.cell(0, 8, "Optimization for this role:", ln=True)
-        pdf.set_font("Arial", "I", 10)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(0, 8, "Optimization for this role:", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "I", 10)
         for bullet in tailored_bullets[:3]:
-            pdf.multi_cell(0, 6, f"* {bullet}")
+            pdf.multi_cell(0, 6, pdf_text(f"* {bullet}"), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(5)
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "Technical Skills", ln=True)
-        pdf.set_font("Arial", "", 10)
-        pdf.multi_cell(0, 6, ", ".join(self.user_profile["skills"]))
-        filename = f"data/resumes/Tailored_Resume_{company.replace(' ', '_')}.pdf"
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 10, "Technical Skills", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(0, 6, pdf_text(", ".join(self.user_profile["skills"])), new_x="LMARGIN", new_y="NEXT")
+        filename = f"data/resumes/{unique_name('Tailored_Resume_' + safe_slug(company, 'company'), 'pdf')}"
         os.makedirs("data/resumes", exist_ok=True)
         pdf.output(filename)
         return filename
@@ -224,10 +225,14 @@ class ResumeTailor:
         prompt = f"Generate Unfair Advantage strategy for {job_query}. Context: {context}. Return JSON list."
         try:
             response = self.model.generate_content(prompt)
-            text = response.text
-            if "```json" in text: text = text.split("```json")[1].split("```")[0].strip()
-            return json.loads(text)
-        except Exception:
+            result = extract_json(response.text)
+            if isinstance(result, dict):
+                result = [result]
+            if not isinstance(result, list):
+                raise ValueError("unexpected response shape")
+            return result
+        except Exception as e:
+            print(f"Strategy generation failed: {e}")
             return [{"error": "Failed"}]
 
 if __name__ == "__main__":

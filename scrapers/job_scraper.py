@@ -11,9 +11,16 @@ class JobScraper:
     Supports extraction from common ATS platforms and job boards.
     """
     def __init__(self):
+        # Each scrape launches its own Chromium; the intelligence agent fans out dozens of them at once,
+        # which exhausts RAM. Cap how many run concurrently.
+        self._browser_slots = asyncio.Semaphore(int(os.getenv("SCRAPER_CONCURRENCY") or 4))
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
 
     async def scrape_url(self, url):
+        async with self._browser_slots:
+            return await self._scrape_url(url)
+
+    async def _scrape_url(self, url):
         print(f"Scraping with Playwright: {url}")
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
@@ -70,8 +77,12 @@ class JobScraper:
 
                 # Sanity Check: Discard junk data
                 invalid_indicators = ["page not found", "couldn't find", "can't find", "sorry", "not active", "404", "we can’t find"]
-                title_low = job_data.get("title", "").lower()
-                desc_low = job_data.get("description", "").lower()
+                # JSON-LD can carry explicit nulls, which .get(key, "") does not replace.
+                job_data["title"] = job_data.get("title") or "N/A"
+                job_data["description"] = job_data.get("description") or ""
+                job_data["company"] = job_data.get("company") or "Unknown"
+                title_low = job_data["title"].lower()
+                desc_low = job_data["description"].lower()
                 
                 is_invalid = any(ind in title_low for ind in invalid_indicators) or \
                              any(ind in desc_low[:500] for ind in invalid_indicators) or \
@@ -231,6 +242,10 @@ class JobScraper:
         return soup.body.get_text(separator='\n', strip=True)
 
     async def discover_job_links(self, career_page_url, search_keyword=None):
+        async with self._browser_slots:
+            return await self._discover_job_links(career_page_url, search_keyword)
+
+    async def _discover_job_links(self, career_page_url, search_keyword=None):
         """
         Navigates to a career page and finds individual job posting links.
         """

@@ -71,12 +71,22 @@ class JobIntelligence:
                 all_jobs.extend(job_list)
         
         # Step 3: Deduplicate and Index
-        unique_jobs = {job['url']: job for job in all_jobs if job}.values()
+        unique_jobs = list({job['url']: job for job in all_jobs if job and job.get('url')}.values())
         print(f"\n✅ GOATed Intelligence gathered {len(unique_jobs)} unique leads.")
         
-        # Save and Index
+        # Save and Index. Merge with what is already on disk: overwriting threw away every job found
+        # on earlier runs (and the sample data shipped in the repo) each time this was called.
+        os.makedirs("data", exist_ok=True)
+        merged = {}
+        if os.path.exists("data/jobs.json"):
+            try:
+                with open("data/jobs.json") as f:
+                    merged = {j["url"]: j for j in json.load(f) if isinstance(j, dict) and j.get("url")}
+            except (json.JSONDecodeError, OSError):
+                merged = {}
+        merged.update({j["url"]: j for j in unique_jobs})
         with open("data/jobs.json", "w") as f:
-            json.dump(list(unique_jobs), f, indent=4)
+            json.dump(list(merged.values()), f, indent=4)
             
         self.pipeline.add_jobs_to_index()
         return list(unique_jobs)

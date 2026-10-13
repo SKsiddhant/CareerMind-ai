@@ -29,11 +29,11 @@ Utilizes **ChromaDB** to index thousands of job descriptions and resumes, enabli
 ### 🎙️ Voice Interview Simulator
 A real-time, end-to-end voice interface:
 *   **STT (Whisper):** Transcribes spoken answers with high precision.
-*   **AI Evaluation:** Uses a fine-tuned model to score answers.
+*   **AI Evaluation:** Gemini scores answers using a few-shot prompt built from the bundled dataset. (The LoRA training script in `models/` is included, but its output is not wired into the app.)
 *   **TTS:** Reads follow-up questions back to the user for a fully immersive experience.
 
 ### 🧠 LoRA Fine-Tuning
-Includes custom training pipelines for **Mistral-7B** (via PEFT/LoRA) to specialize the model in professional career coaching and technical evaluation.
+Includes an (optional, GPU-only) training pipeline for **Mistral-7B** (via PEFT/LoRA). It is a standalone script: the running app calls Gemini, not the fine-tuned model. Install its extra dependencies with `pip install -r requirements-training.txt`.
 
 ### 🕵️ Autonomous Hunter
 A 24/7 background worker that scouts for "elite" opportunities, filtering through noise to find the top 1% of jobs matching your profile.
@@ -47,7 +47,7 @@ The platform is built with a decoupled, micro-service-ready architecture:
 *   **Frontend:** React 18 + TypeScript + Vite + Cyberpunk-inspired Vanilla CSS.
 *   **Backend:** FastAPI (Python) + SQLAlchemy + Pydantic.
 *   **Vector Database:** ChromaDB for semantic embeddings.
-*   **Storage:** SQLite (local) / PostgreSQL (production) + Redis for task queuing.
+*   **Storage:** SQLite (local fallback) / PostgreSQL. (A Redis container is in `docker-compose.yml`, but nothing in the code uses it yet.)
 *   **AI/ML:** OpenAI/Gemini API + Local Mistral-7B (Fine-tuned) + Whisper + TTS.
 
 > Refer to `architecture.svg` for a detailed visual breakdown of the multi-agent design.
@@ -62,10 +62,12 @@ The platform is built with a decoupled, micro-service-ready architecture:
 *   Python 3.10+ (for local development)
 
 ### 2. Using Docker (Recommended)
-Run the entire stack with a single command:
 ```bash
-docker-compose up --build
+cp .env.example .env      # then set GOOGLE_API_KEY (and change POSTGRES_PASSWORD)
+docker compose up --build
 ```
+The first start downloads the Whisper and embedding models (several hundred MB; cached in a Docker volume afterwards).
+If the app is not served from `http://localhost`, set `CORS_ORIGINS` and `VITE_API_URL` in `.env` (see `.env.example`).
 The application will be available at:
 *   **Frontend:** `http://localhost`
 *   **Backend API:** `http://localhost:8002`
@@ -75,9 +77,16 @@ The application will be available at:
 
 **Backend:**
 ```bash
+cp .env.example .env      # set GOOGLE_API_KEY
 pip install -r requirements.txt
 playwright install chromium
-uvicorn backend.main:app --host 0.0.0.0 --port 8002
+uvicorn backend.main:app --port 8002
+```
+
+**Tests** (offline, no API key or model downloads):
+```bash
+pip install -r requirements-dev.txt
+pytest
 ```
 
 **Frontend:**
@@ -107,15 +116,6 @@ This project showcases production-level AI engineering skills:
 *   **Vector Embeddings:** Efficient retrieval and semantic matching.
 *   **Model Optimization:** Quantization (4-bit) and LoRA fine-tuning.
 *   **Full-Stack DevOps:** Containerization, CI/CD readiness, and clean architecture.
-
----
-
-## 📺 Demo
-![Demo GIF](path/to/demo.gif)
-*Watch the platform in action!*
-
-## 🌐 Live Application
-[View CareerMind AI Live](https://your-deployment-url.com)
 
 ---
 
